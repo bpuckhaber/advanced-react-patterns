@@ -5,6 +5,33 @@ import warning from 'warning'
 import * as React from 'react'
 import {Switch} from '../switch'
 
+function useControlledSwitchWarning(
+  controlPropValue,
+  controlPropName,
+  componentName) {
+  const propIsControlled = controlPropValue != null
+  const {current: prevPropIsControlled} = React.useRef(propIsControlled)
+
+  React.useEffect(() => {
+    const showUncontrolledToControlledWarning = prevPropIsControlled && !propIsControlled;
+    warning(!showUncontrolledToControlledWarning, `\`${componentName}\` is changing from controlled to be uncontrolled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled \`${componentName}\` for the lifetime of the component. Check the \`${controlPropName}\` prop.`)
+    
+    const showControlledToUncontrolledWarning = !prevPropIsControlled && propIsControlled;
+    warning(!showControlledToUncontrolledWarning, `\`${componentName}\` is changing from uncontrolled to be controlled. Components should not switch from uncontrolled to controlled (or vice versa). Decide between using a controlled or uncontrolled \`${componentName}\` for the lifetime of the component. Check the \`${controlPropName}\` prop.`)
+  }, [propIsControlled, prevPropIsControlled, componentName, controlPropName])
+}
+
+function useOnChangeReadOnlyWarning(
+  controlPropValue,
+  controlPropName, onChange, onChangeName, initialValueName, readOnly, readOnlyName) {
+  const propIsControlled = controlPropValue != null
+
+  React.useEffect(() => {
+    const showReadOnlyWarning = propIsControlled && !onChange && !readOnly;
+    warning(!showReadOnlyWarning, `Failed prop type: You provided an \`${controlPropName}\` prop without an \`${onChangeName}\` handler. This will render a read-only field. If the field should be mutable use \`${initialValueName}\`. Otherwise, set either \`${onChangeName}\` or \`${readOnlyName}\`.`)
+  }, [propIsControlled, onChange, readOnly, readOnlyName, controlPropName, onChangeName, initialValueName])
+}
+
 const callAll =
   (...fns) =>
   (...args) =>
@@ -39,22 +66,11 @@ function useToggle({
   const {current: initialState} = React.useRef({on: initialOn})
   const [state, dispatch] = React.useReducer(reducer, initialState)
   const onIsControlled = controlledOn != null
-  const {current: prevOnIsControlled} = React.useRef(onIsControlled)
   const on = onIsControlled ? controlledOn : state.on
-
-  React.useEffect(() => {
-    const showReadOnlyWarning = onIsControlled && !onChange && !readOnly;
-    warning(!showReadOnlyWarning, 'Failed prop type: You provided an `on` prop without an `onChange` handler. This will render a read-only field. If the field should be mutable use `initialOn`. Otherwise, set either `onChange` or `readOnly`.')
-  }, [onIsControlled, onChange, readOnly])
-
-  React.useEffect(() => {
-    const showUncontrolledToControlledWarning = prevOnIsControlled && !onIsControlled;
-    warning(!showUncontrolledToControlledWarning, `\`useToggle\` is changing from controlled to be uncontrolled. Components should not switch from controlled to uncontrolled (or vice versa). Decide between using a controlled or uncontrolled \`useToggle\` for the lifetime of the component. Check the \`on\` prop.`)
-    
-    const showControlledToUncontrolledWarning = !prevOnIsControlled && onIsControlled;
-    warning(!showControlledToUncontrolledWarning, `\`useToggle\` is changing from uncontrolled to be controlled. Components should not switch from uncontrolled to controlled (or vice versa). Decide between using a controlled or uncontrolled \`useToggle\` for the lifetime of the component. Check the \`on\` prop.`)
-  }, [onIsControlled, prevOnIsControlled])
-
+  useControlledSwitchWarning(controlledOn, 'on', 'useToggle');
+  useOnChangeReadOnlyWarning(controlledOn,
+    'on', onChange, 'onChange', 'initialOn', readOnly, 'readOnly');
+  
   const dispatchWithOnChange = action => {
     if (!onIsControlled) {
       dispatch(action)
